@@ -3,6 +3,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart' as FlutterAcrylic;
 import 'package:provider/provider.dart';
+import 'package:scoop_gui/screens/browse.dart';
 import 'package:scoop_gui/theme.dart';
 import 'package:system_theme/system_theme.dart';
 
@@ -211,12 +212,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
       content: NavigationBody(index: index, children: [
-        ScaffoldPage(
-          header: PageHeader(
-            title: Text("Browse apps"),
-            commandBar: Button(child: Text("Refresh"), onPressed: () => {}),
-          ),
-        ),
+        BrowsePage(),
         ScaffoldPage(
           header: PageHeader(
             title: Text("Library"),
