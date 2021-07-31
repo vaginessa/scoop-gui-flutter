@@ -3,7 +3,7 @@ description: A new Flutter project.
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -23,8 +23,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  fluent_ui: ^2.2.1
+  fluent_ui: # Change to 3.0.0 when the new version of Fluent UI is released
+    git:
+      url: https://github.com/bdlukaa/fluent_ui
+      ref: f32ea5d90585a907f77e66de072a778c90c472a5
   system_theme: ^1.0.1
+  flutter_acrylic: ^0.0.2
+  bitsdojo_window: ^0.1.1+1
+  provider: ^5.0.0
 
 dev_dependencies:
   flutter_test:
@@ -35,11 +41,10 @@ dev_dependencies:
 
 # The following section is specific to Flutter.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
-  uses-material-design: true
+  uses-material-design: false
 
   # To add assets to your application, add an assets section, like this:
   # assets:
