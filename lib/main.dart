@@ -100,17 +100,44 @@ class _MyHomePageState extends State<MyHomePage> {
     final appTheme = context.watch<AppTheme>();
     return NavigationView(
       appBar: NavigationAppBar(
-        // height: !kIsWeb ? appWindow.titleBarHeight : 31.0,
         title: () {
           if (kIsWeb) return Text(appTitle);
           return MoveWindow(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(appTitle),
-            ),
+            child: LayoutBuilder(builder: (context, constraints) {
+              var children = <Widget>[];
+              debugPrint(constraints.biggest.width.toString());
+              if (constraints.biggest.width >= 580) {
+                children += [
+                  Container(
+                      width: 150,
+                      alignment: Alignment.centerLeft,
+                      child: Text(appTitle))
+                ];
+              }
+
+              children += [
+                Flexible(
+                  flex: 1,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: 600),
+                    child: AutoSuggestBox<String>(
+                      controller: TextEditingController(),
+                      items: ['Item 1', 'Item 2', 'Item 3', 'Item 4'],
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 150,
+                ),
+              ];
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: children,
+              );
+            }),
           );
         }(),
-        leading: Container(),
+        automaticallyImplyLeading: false,
         actions: kIsWeb
             ? null
             : MoveWindow(
@@ -178,11 +205,6 @@ class _MyHomePageState extends State<MyHomePage> {
           PaneItemSeparator(),
           PaneItem(icon: Icon(FluentIcons.repo), title: Text('Buckets')),
         ],
-        autoSuggestBox: AutoSuggestBox<String>(
-          controller: TextEditingController(),
-          items: ['Item 1', 'Item 2', 'Item 3', 'Item 4'],
-        ),
-        autoSuggestBoxReplacement: Icon(FluentIcons.search),
         footerItems: [
           PaneItemSeparator(),
           PaneItem(icon: Icon(FluentIcons.settings), title: Text('Settings')),
