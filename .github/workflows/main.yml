@@ -1,0 +1,142 @@
+# Creates release when tag pushed
+# Create tag:
+#  git tag vX.X.X
+# Push it:
+#  git push origin <tag_name>
+# After that release will be created.
+
+# git tag --delete tagname
+# git push --delete origin tagname
+
+# Used Github secrets
+#  KEY_PROPERTIES - file
+#  RELEASE_AGORADESK_KEYSTORE
+#  RELEASE_AGORADESK_KEYSTORE_SECRET
+#  RELEASE_LOCALMONERO_KEYSTORE
+#  RELEASE_LOCALMONERO_KEYSTORE_SECRET
+#  AGORADESK_GOOGLE_SERVICES_JSON
+#  LOCALMONERO_GOOGLE_SERVICES_JSON
+#  MAPBOX_KEY
+#  FIREBASE_OPTIONS_AGORADESK
+#  FIREBASE_OPTIONS_LOCALMONERO
+#  RELEASE_TOKEN
+
+name: GithubRelease
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  build:
+    name: Build APK & AppBundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      #      - name: Exit if not on main branch
+      #        if: endsWith(github.ref, 'main') == false
+      #        run: exit -1
+
+      - name: AgoradDesk decrypt secret
+        env:
+          RELEASE_KEYSTORE_SECRET: ${{ secrets.RELEASE_AGORADESK_KEYSTORE_SECRET }}
+          RELEASE_KEYSTORE: ${{ secrets.RELEASE_AGORADESK_KEYSTORE }}
+        run: ./decrypt_secret.sh > ./android/app/agoradesk-keystore.jks
+
+      - name: LocalMonero decrypt secret
+        env:
+          RELEASE_KEYSTORE_SECRET: ${{ secrets.RELEASE_LOCALMONERO_KEYSTORE_SECRET }}
+          RELEASE_KEYSTORE: ${{ secrets.RELEASE_LOCALMONERO_KEYSTORE }}
+        run: ./decrypt_secret.sh > ./android/app/localmonero-keystore.jks
+
+      - name: Save Firebase options files
+        env:
+          KEY_PROPERTIES: ${{ secrets.KEY_PROPERTIES }}
+          AGORADESK_GOOGLE_SERVICES_JSON: ${{ secrets.AGORADESK_GOOGLE_SERVICES_JSON }}
+          LOCALMONERO_GOOGLE_SERVICES_JSON: ${{ secrets.LOCALMONERO_GOOGLE_SERVICES_JSON }}
+          FIREBASE_OPTIONS_AGORADESK: ${{ secrets.FIREBASE_OPTIONS_AGORADESK }}
+          FIREBASE_OPTIONS_LOCALMONERO: ${{ secrets.FIREBASE_OPTIONS_LOCALMONERO }}
+          MAPBOX_KEY: ${{ secrets.MAPBOX_KEY }}
+        run: |
+          printf "$KEY_PROPERTIES" > ./android/key.properties
+          printf "$AGORADESK_GOOGLE_SERVICES_JSON" > ./android/app/src/agoradesk/google-services.json
+          printf "$LOCALMONERO_GOOGLE_SERVICES_JSON" > ./android/app/src/localmonero/google-services.json
+          printf "$FIREBASE_OPTIONS_AGORADESK" >> ./lib/firebase_options_agoradesk.dart
+          printf "$FIREBASE_OPTIONS_LOCALMONERO" > ./lib/firebase_options_localmonero.dart
+          mkdir ./lib/keys
+          printf "const keysMapToken = '$MAPBOX_KEY';" > ./lib/keys/keys.dart
+
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '12.x'
+
+      - name: Run read-yaml action
+        id: yaml-data
+        uses: KJ002/read-yaml@main
+        with:
+          file: './pubspec.yaml'
+          key-path: '["version"]' # Access the runs key then the using key and retuns the value.
+
+      - name: Split version number
+        id: split
+        uses: jungwinter/split@v2
+        with:
+          msg: ${{ steps.yaml-data.outputs.data }}
+          separator: "+"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - run: flutter pub get
+
+      - name: Build-runner
+        run: flutter packages pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build AgoraDesk APK (Refular + FOSS)
+        run: |
+          flutter build apk --flavor agoradesk --dart-define=app.flavor=agoradesk --dart-define=app.checkUpdates=true
+          mv build/app/outputs/flutter-apk/app-agoradesk-release.apk build/app/outputs/flutter-apk/com.agoradesk.app_${{ steps.split.outputs._1 }}.apk
+          
+          git fetch
+          git stash
+          git checkout fdroid_ad
+          
+          flutter build apk --flavor agoradesk --dart-define=app.flavor=agoradesk --dart-define=app.includeFcm=false --dart-define=app.checkUpdates=true
+          mv build/app/outputs/flutter-apk/app-agoradesk-release.apk build/app/outputs/flutter-apk/com.agoradesk.app-foss_${{ steps.split.outputs._1 }}.apk
+          
+          git fetch
+          git stash
+          git checkout main
+          
+          flutter build apk --flavor localmonero --dart-define=app.flavor=localmonero --dart-define=app.checkUpdates=true
+          mv build/app/outputs/flutter-apk/app-localmonero-release.apk build/app/outputs/flutter-apk/co.localmonero.app_${{ steps.split.outputs._1 }}.apk
+          
+          git fetch
+          git stash
+          git checkout fdroid_lm
+          
+          flutter build apk --flavor localmonero --dart-define=app.flavor=localmonero --dart-define=app.includeFcm=false --dart-define=app.checkUpdates=true
+          mv build/app/outputs/flutter-apk/app-localmonero-release.apk build/app/outputs/flutter-apk/co.localmonero.app-foss_${{ steps.split.outputs._1 }}.apk
+      #          rm build/app/outputs/flutter-apk/app.apk
+
+      - name: Create Github Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "build/app/outputs/flutter-apk/*.apk, hashes.txt"
+          bodyFile: "RELEASE.md"
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+#      - name: Generates release files hashes
+#        uses: MCJack123/ghaction-generate-release-hashes@v3
+#        with:
+#          hash-type: sha256
+#          file-name: hashes.txt
+#
+#      - name: Upload hashes
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: Asset Hashes
+#          path: hashes.txt
